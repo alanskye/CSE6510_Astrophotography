@@ -28,30 +28,35 @@ def get_star_positions(img: np.ndarray, step_size: int = 128):
     gray_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     assert gray_img.dtype == np.uint8
 
+
     _local_dark_map = np.zeros_like(gray_img)
 
 
-
-    def get_local_sky_range(local_img: np.ndarray, alpha: float = 0.75) -> tuple:
+    def get_local_sky_range(local_img: np.ndarray, select_ratio: float, cut_ratio: float = 0.0) -> tuple:
         '''
         returns a tuple (dark_pixel, star_th, 255). We regard pixels as star if
         its range belong to (star_th, 255).
 
+        dark_val  = non-star brightness value of the given patch
+        cut_ratio = ratio of ignored birght pixels in the patch
+
             Parameters:
                 local_img   : grayscale image
-                alpha       : 
+                select_ratio: 
             Returns:
                 local_star_range which 
         '''
-        local_dark_val = np.mean(local_img)
-        local_star_th = np.uint8(local_dark_val + (255 - local_dark_val) * (1.0 - alpha))
+        cut_idx = int(local_img.size * (1 - cut_ratio))
+        
+        local_dark_val = np.mean(local_img.flatten()[0:cut_idx])
+        local_star_th = np.uint8(local_dark_val + (255 - local_dark_val) * (1.0 - select_ratio))
         white = 255
         local_sky_range = (local_dark_val, local_star_th, white)
         return local_sky_range
 
 
     (img_h, img_w) = gray_img.shape
-
+    # for each sub-image (patch), 
     for box_y1 in range(0, img_h, step_size):
         for box_x1 in range(0, img_w, step_size):
 
@@ -60,22 +65,17 @@ def get_star_positions(img: np.ndarray, step_size: int = 128):
 
             local_img = img[box_y1:box_y2, box_x1:box_x2]
 
-            (local_dark_val, local_star_th, white) = get_local_sky_range(local_img)
-            
+            (local_dark_val, local_star_th, white) = get_local_sky_range(local_img, select_ratio=0.75, cut_ratio=0.0)
+
             _local_dark_map[box_y1:box_y2, box_x1:box_x2] = local_dark_val
 
+
     show_image(_local_dark_map)
-
-
-
         
-
-
-
 def main():
     img = cv.imread(IMAGE_PATH)
     show_image(img)
-    get_star_positions(img)
+    get_star_positions(img, 64)
 
 
 
